@@ -1,15 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Focus Room Virtual Study Space API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: rooms
+    description: Study room operations
+  - name: sessions
+    description: Study session operations
+  - name: dashboard
+    description: User dashboard and analytics
+  - name: leaderboard
+    description: Leaderboard operations
 paths:
   /healthz:
     get:
@@ -24,7 +33,422 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/profile:
+    patch:
+      operationId: updateProfile
+      tags: [auth]
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rooms:
+    get:
+      operationId: listRooms
+      tags: [rooms]
+      summary: List all public rooms
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a study room
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "201":
+          description: Room created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Room"
+
+  /rooms/{roomId}:
+    get:
+      operationId: getRoom
+      tags: [rooms]
+      summary: Get room details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomDetail"
+        "404":
+          description: Room not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteRoom
+      tags: [rooms]
+      summary: Delete a room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Room deleted
+
+  /rooms/{roomId}/join:
+    post:
+      operationId: joinRoom
+      tags: [rooms]
+      summary: Join a study room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinRoomRequest"
+      responses:
+        "200":
+          description: Joined room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomDetail"
+        "403":
+          description: Wrong password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rooms/{roomId}/leave:
+    post:
+      operationId: leaveRoom
+      tags: [rooms]
+      summary: Leave a study room
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Left room
+
+  /rooms/{roomId}/timer:
+    post:
+      operationId: updateTimer
+      tags: [rooms]
+      summary: Update room timer state (host only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimerUpdateRequest"
+      responses:
+        "200":
+          description: Timer updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimerState"
+
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: Get user study sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudySession"
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Start a new study session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySession"
+
+  /sessions/{sessionId}/complete:
+    post:
+      operationId: completeSession
+      tags: [sessions]
+      summary: Complete a study session
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteSessionRequest"
+      responses:
+        "200":
+          description: Session completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudySession"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get user dashboard stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/activity:
+    get:
+      operationId: getActivity
+      tags: [dashboard]
+      summary: Get weekly activity data for graphs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: Activity data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityDay"
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get top focused users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly, alltime]
+            default: weekly
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +458,421 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+      required:
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        theme:
+          type: string
+          default: dark
+        studyGoalMinutes:
+          type: integer
+          default: 120
+        createdAt:
+          type: string
+          format: date-time
+        totalFocusMinutes:
+          type: integer
+          default: 0
+        currentStreak:
+          type: integer
+          default: 0
+        longestStreak:
+          type: integer
+          default: 0
+      required:
+        - id
+        - username
+        - email
+        - createdAt
+        - totalFocusMinutes
+        - currentStreak
+        - longestStreak
+
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 30
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - username
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        theme:
+          type: string
+        studyGoalMinutes:
+          type: integer
+
+    Room:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          default: general
+        isPrivate:
+          type: boolean
+          default: false
+        hasPassword:
+          type: boolean
+          default: false
+        maxParticipants:
+          type: integer
+          default: 10
+        participantCount:
+          type: integer
+          default: 0
+        background:
+          type: string
+          default: default
+        focusDuration:
+          type: integer
+          default: 25
+        breakDuration:
+          type: integer
+          default: 5
+        hostId:
+          type: string
+        hostUsername:
+          type: string
+        timerState:
+          $ref: "#/components/schemas/TimerState"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - category
+        - isPrivate
+        - hasPassword
+        - maxParticipants
+        - participantCount
+        - background
+        - focusDuration
+        - breakDuration
+        - hostId
+        - hostUsername
+        - createdAt
+
+    RoomDetail:
+      allOf:
+        - $ref: "#/components/schemas/Room"
+        - type: object
+          properties:
+            participants:
+              type: array
+              items:
+                $ref: "#/components/schemas/Participant"
+          required:
+            - participants
+
+    Participant:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        joinedAt:
+          type: string
+          format: date-time
+        isHost:
+          type: boolean
+      required:
+        - userId
+        - username
+        - joinedAt
+        - isHost
+
+    CreateRoomRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 60
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          default: general
+        isPrivate:
+          type: boolean
+          default: false
+        password:
+          type: string
+          nullable: true
+        maxParticipants:
+          type: integer
+          default: 10
+          minimum: 2
+          maximum: 50
+        background:
+          type: string
+          default: default
+        focusDuration:
+          type: integer
+          default: 25
+          minimum: 5
+          maximum: 90
+        breakDuration:
+          type: integer
+          default: 5
+          minimum: 1
+          maximum: 30
+      required:
+        - name
+
+    JoinRoomRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          nullable: true
+
+    TimerState:
+      type: object
+      properties:
+        phase:
+          type: string
+          enum: [focus, break, idle]
+          default: idle
+        isRunning:
+          type: boolean
+          default: false
+        timeRemaining:
+          type: integer
+          description: Seconds remaining
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        pomodoroCount:
+          type: integer
+          default: 0
+      required:
+        - phase
+        - isRunning
+        - timeRemaining
+        - pomodoroCount
+
+    TimerUpdateRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [start, pause, reset, skip]
+        phase:
+          type: string
+          enum: [focus, break]
+          nullable: true
+      required:
+        - action
+
+    StudySession:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        roomId:
+          type: string
+          nullable: true
+        roomName:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+        durationMinutes:
+          type: integer
+          nullable: true
+        pomodorosCompleted:
+          type: integer
+          default: 0
+        completed:
+          type: boolean
+          default: false
+      required:
+        - id
+        - userId
+        - startTime
+        - pomodorosCompleted
+        - completed
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        roomId:
+          type: string
+          nullable: true
+      required: []
+
+    CompleteSessionRequest:
+      type: object
+      properties:
+        pomodorosCompleted:
+          type: integer
+          default: 0
+      required: []
+
+    DashboardStats:
+      type: object
+      properties:
+        todayMinutes:
+          type: integer
+        weeklyMinutes:
+          type: integer
+        monthlyMinutes:
+          type: integer
+        totalMinutes:
+          type: integer
+        totalSessions:
+          type: integer
+        completedSessions:
+          type: integer
+        currentStreak:
+          type: integer
+        longestStreak:
+          type: integer
+        studyGoalMinutes:
+          type: integer
+        goalProgressPercent:
+          type: number
+        topProductiveHour:
+          type: integer
+          nullable: true
+        weeklyTarget:
+          type: integer
+          default: 600
+      required:
+        - todayMinutes
+        - weeklyMinutes
+        - monthlyMinutes
+        - totalMinutes
+        - totalSessions
+        - completedSessions
+        - currentStreak
+        - longestStreak
+        - studyGoalMinutes
+        - goalProgressPercent
+        - weeklyTarget
+
+    ActivityDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        minutes:
+          type: integer
+        sessions:
+          type: integer
+      required:
+        - date
+        - minutes
+        - sessions
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: string
+        username:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        focusMinutes:
+          type: integer
+        sessionsCompleted:
+          type: integer
+        currentStreak:
+          type: integer
+        isCurrentUser:
+          type: boolean
+          default: false
+      required:
+        - rank
+        - userId
+        - username
+        - focusMinutes
+        - sessionsCompleted
+        - currentStreak
+        - isCurrentUser

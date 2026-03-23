@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript. This is a **Focus Room – Virtual Study Space** application — a real-time productivity tool for students to study together in virtual rooms with synchronized Pomodoro timers.
 
 ## Stack
 
@@ -10,87 +10,100 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
+- **Frontend**: React 19 + Vite (artifacts/focus-room)
+- **Backend**: Express 5 + Node.js (artifacts/api-server)
+- **Real-time**: Socket.IO (namespace: root `/`, path: `/api/socket.io`)
 - **Database**: PostgreSQL + Drizzle ORM
+- **Auth**: JWT (jsonwebtoken + bcryptjs), token stored in localStorage as `focus_room_token`
+- **State management**: Zustand
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Animations**: Framer Motion
+- **Charts**: Recharts
+
+## Features
+
+- **Authentication**: JWT-based register/login/profile
+- **Virtual Study Rooms**: Create/join public and private rooms with password protection
+- **Synchronized Pomodoro Timer**: Real-time timer sync via Socket.IO (host controls start/pause/skip/reset)
+- **Room Chat**: Real-time message exchange within rooms
+- **Dashboard**: Study stats (daily/weekly/monthly), progress charts, session history, streak counter
+- **Leaderboard**: Top focused users by period (daily/weekly/monthly/alltime)
+- **Dark Mode**: Full dark theme with calming navy/purple/teal palette
 
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
+├── artifacts/
+│   ├── api-server/         # Express API server with Socket.IO
+│   └── focus-room/         # React + Vite frontend
+├── lib/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/                # Utility scripts
+├── pnpm-workspace.yaml
+└── tsconfig.json
 ```
 
-## TypeScript & Composite Projects
+## Database Schema
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+- **users** — id, username, email, passwordHash, avatar, theme, studyGoalMinutes, totalFocusMinutes, currentStreak, longestStreak, lastStudyDate
+- **rooms** — id, name, description, category, isPrivate, passwordHash, maxParticipants, background, focusDuration, breakDuration, hostId, timerState (jsonb)
+- **room_participants** — roomId, userId, joinedAt, isHost (composite PK)
+- **study_sessions** — id, userId, roomId, startTime, endTime, durationMinutes, pomodorosCompleted, completed
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## API Routes
 
-## Root Scripts
+All routes under `/api`:
+- `GET /healthz` — Health check
+- `POST /auth/register` — Register user
+- `POST /auth/login` — Login
+- `GET /auth/me` — Current user (auth required)
+- `PATCH /auth/profile` — Update profile (auth required)
+- `GET /rooms` — List public rooms (auth required)
+- `POST /rooms` — Create room (auth required)
+- `GET /rooms/:id` — Room detail (auth required)
+- `POST /rooms/:id/join` — Join room (auth required)
+- `POST /rooms/:id/leave` — Leave room (auth required)
+- `POST /rooms/:id/timer` — Update timer (host only, auth required)
+- `DELETE /rooms/:id` — Delete room (host only, auth required)
+- `GET /sessions` — User sessions (auth required)
+- `POST /sessions` — Start session (auth required)
+- `POST /sessions/:id/complete` — Complete session (auth required)
+- `GET /dashboard` — Dashboard stats (auth required)
+- `GET /dashboard/activity` — Activity data (auth required)
+- `GET /leaderboard` — Leaderboard (auth required)
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+## Socket.IO Events
 
-## Packages
+Connect to: `io("/", { path: "/api/socket.io", auth: { token } })`
 
-### `artifacts/api-server` (`@workspace/api-server`)
+Emit:
+- `join-room(roomId)` — Join room socket channel
+- `leave-room(roomId)` — Leave room socket channel
+- `send-message({ roomId, content })` — Send chat message
+- `timer-action({ roomId, action })` — Control timer (host only): start/pause/reset/skip
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+Listen:
+- `room-state(data)` — Initial room state with participants and timer
+- `user-joined(user)` — Someone joined the room
+- `user-left(userId)` — Someone left the room
+- `message(msg)` — Chat message received
+- `timer-update(timerState)` — Timer state changed
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+## Running Locally
 
-### `lib/db` (`@workspace/db`)
+- **API Server**: `pnpm --filter @workspace/api-server run dev`
+- **Frontend**: `pnpm --filter @workspace/focus-room run dev`
+- **DB migrations**: `pnpm --filter @workspace/db run push`
+- **Codegen**: `pnpm --filter @workspace/api-spec run codegen`
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+## Environment Variables
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned by Replit)
+- `PORT` — Server port (auto-assigned by Replit per service)
+- `JWT_SECRET` — JWT signing secret (defaults to dev value, set in production)

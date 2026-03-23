@@ -1,0 +1,21 @@
+packages:
+  "framer-motion": "Smooth animations for timer, page transitions, and focus mode"
+  "recharts": "Bar charts for dashboard activity"
+  "socket.io-client": "Real-time timer sync and chat"
+  "date-fns": "Formatting session dates and durations"
+  "clsx": "Classname merging"
+  "tailwind-merge": "Tailwind class merging"
+  "@radix-ui/react-slot": "Component composition"
+  "@radix-ui/react-tooltip": "Tooltips for UI elements"
+
+images:
+  - path: "artifacts/focus-room/public/images/hero-bg.png"
+    description: "Dark, abstract, calming gradient background with deep navy, soft purple, and teal hues, featuring subtle glowing orbs resembling a quiet night study environment"
+    aspect_ratio: "16:9"
+  - path: "artifacts/focus-room/public/images/avatar-placeholder.png"
+    description: "Minimalist, aesthetic geometric avatar placeholder in deep dark purple and teal colors, flat design"
+    aspect_ratio: "1:1"
+
+notes:
+  - API uses JWT token stored in localStorage as 'focus_room_token'
+  - Socket.io connects to root path '/' or '/rooms' namespace with auth token
