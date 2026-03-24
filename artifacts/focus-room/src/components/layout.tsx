@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { BrainCircuit, LayoutDashboard, Trophy, LogOut, Search, User } from "lucide-react";
 import { useAuthApi } from "@/hooks/use-auth-api";
 import { Button } from "./ui";
