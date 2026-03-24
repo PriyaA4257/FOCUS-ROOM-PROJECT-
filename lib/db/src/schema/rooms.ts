@@ -13,6 +13,7 @@ export const roomsTable = pgTable("rooms", {
   background: text("background").notNull().default("default"),
   focusDuration: integer("focus_duration").notNull().default(25),
   breakDuration: integer("break_duration").notNull().default(5),
+  meetLink: text("meet_link"),
   hostId: text("host_id").notNull(),
   timerState: jsonb("timer_state").$type<{
     phase: "focus" | "break" | "idle";

@@ -52,6 +52,7 @@ router.get("/", requireAuth, async (req: AuthRequest, res) => {
         breakDuration: room.breakDuration,
         hostId: room.hostId,
         hostUsername: host?.username || "Unknown",
+        meetLink: room.meetLink || null,
         timerState: room.timerState,
         createdAt: room.createdAt,
       }))
@@ -74,6 +75,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
       background = "default",
       focusDuration = 25,
       breakDuration = 5,
+      meetLink,
     } = req.body;
 
     if (!name || name.length < 3) {
@@ -97,6 +99,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
         background,
         focusDuration,
         breakDuration,
+        meetLink: meetLink || null,
         hostId: req.user!.userId,
         timerState: {
           phase: "idle",
@@ -132,6 +135,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
       background: room.background,
       focusDuration: room.focusDuration,
       breakDuration: room.breakDuration,
+      meetLink: room.meetLink || null,
       hostId: room.hostId,
       hostUsername: host?.username || "Unknown",
       timerState: room.timerState,
@@ -176,6 +180,7 @@ async function getRoomDetail(roomId: string) {
     background: room.background,
     focusDuration: room.focusDuration,
     breakDuration: room.breakDuration,
+    meetLink: room.meetLink || null,
     hostId: room.hostId,
     hostUsername: host?.username || "Unknown",
     timerState: room.timerState,
@@ -251,6 +256,39 @@ router.post("/:roomId/join", requireAuth, async (req: AuthRequest, res) => {
     res.json(detail);
   } catch (err) {
     req.log.error({ err }, "Join room error");
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+router.patch("/:roomId/meet-link", requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { roomId } = req.params as { roomId: string };
+    const { meetLink } = req.body;
+
+    const [room] = await db.select().from(roomsTable).where(eq(roomsTable.id, roomId));
+    if (!room) {
+      res.status(404).json({ message: "Room not found" });
+      return;
+    }
+    if (room.hostId !== req.user!.userId) {
+      res.status(403).json({ message: "Only the host can set the Meet link" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(roomsTable)
+      .set({ meetLink: meetLink || null, updatedAt: new Date() })
+      .where(eq(roomsTable.id, roomId))
+      .returning();
+
+    const io = getIo();
+    if (io) {
+      io.to(`room:${roomId}`).emit("meet-link-updated", { meetLink: updated.meetLink });
+    }
+
+    res.json({ meetLink: updated.meetLink });
+  } catch (err) {
+    req.log.error({ err }, "Update meet link error");
     res.status(500).json({ message: "Internal server error" });
   }
 });

@@ -27,6 +27,7 @@ export function useRoomSocket(roomId: string) {
   const [timerState, setTimerState] = useState<TimerState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [reactions, setReactions] = useState<EmojiReaction[]>([]);
+  const [meetLink, setMeetLink] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !roomId) return;
@@ -71,6 +72,10 @@ export function useRoomSocket(roomId: string) {
       });
     });
 
+    socket.on("meet-link-updated", (data: { meetLink: string | null }) => {
+      setMeetLink(data.meetLink);
+    });
+
     return () => {
       socket.emit("leave-room", roomId);
       socket.disconnect();
@@ -95,6 +100,7 @@ export function useRoomSocket(roomId: string) {
     timerState,
     messages,
     reactions,
+    meetLink,
     sendMessage,
     sendReaction,
   };
