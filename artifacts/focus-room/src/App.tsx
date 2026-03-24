@@ -11,6 +11,7 @@ import Rooms from "@/pages/rooms";
 import RoomDetail from "@/pages/room-detail";
 import Dashboard from "@/pages/dashboard";
 import Leaderboard from "@/pages/leaderboard";
+import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/rooms/:roomId" component={RoomDetail} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

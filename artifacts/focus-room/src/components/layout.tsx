@@ -1,21 +1,30 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrainCircuit, LayoutDashboard, Trophy, LogOut, Search, User } from "lucide-react";
+import { BrainCircuit, LayoutDashboard, Trophy, LogOut, Search, User, Moon, Sun } from "lucide-react";
 import { useAuthApi } from "@/hooks/use-auth-api";
+import { useThemeStore, initTheme } from "@/hooks/use-theme";
 import { Button } from "./ui";
+import { cn } from "@/lib/utils";
+
+initTheme();
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, logout, user } = useAuthApi();
   const [location] = useLocation();
+  const { colorTheme, setColorTheme } = useThemeStore();
 
-  if (!isAuthenticated) return <>{children}</>;
+  const lastRoom = localStorage.getItem("focus_last_room_id");
+  const lastRoomName = localStorage.getItem("focus_last_room_name");
 
   const navItems = [
     { href: "/rooms", icon: Search, label: "Explore" },
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/leaderboard", icon: Trophy, label: "Leaderboard" },
+    { href: "/profile", icon: User, label: "Profile" },
   ];
+
+  if (!isAuthenticated) return <>{children}</>;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
@@ -27,11 +36,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <span className="font-display font-bold text-lg text-white">FocusRoom</span>
         </Link>
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-center">
+          <button
+            onClick={() => setColorTheme(colorTheme === "dark" ? "light" : "dark")}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-secondary/60 text-muted-foreground transition-colors"
+          >
+            {colorTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           {navItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <Button variant={location === item.href ? "secondary" : "ghost"} size="icon" className="w-10 h-10 rounded-full">
-                <item.icon size={18} className={location === item.href ? "text-primary" : "text-muted-foreground"} />
+              <Button variant={location === item.href ? "secondary" : "ghost"} size="icon" className="w-9 h-9 rounded-full">
+                <item.icon size={16} className={location === item.href ? "text-primary" : "text-muted-foreground"} />
               </Button>
             </Link>
           ))}
@@ -47,13 +62,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="font-display font-bold text-2xl text-white tracking-tight">FocusRoom</span>
         </Link>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-1">
           {navItems.map((item) => {
             const isActive = location === item.href;
             return (
               <Link key={item.href} href={item.href}>
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-300 group ${isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'}`}>
-                  <item.icon size={20} className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <div className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 group relative",
+                  isActive ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                )}>
+                  <item.icon size={18} className={cn("transition-transform duration-200", isActive ? "scale-110" : "group-hover:scale-110")} />
                   {item.label}
                   {isActive && (
                     <motion.div layoutId="activeNav" className="absolute left-0 w-1 h-8 bg-primary rounded-r-full" />
@@ -64,15 +82,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-border/50 space-y-4">
+        {/* Quick Rejoin */}
+        {lastRoom && (
+          <Link href={`/rooms/${lastRoom}`}>
+            <div className="mt-4 p-3 rounded-xl bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-colors cursor-pointer">
+              <p className="text-xs text-accent font-bold uppercase tracking-wide mb-1">Continue Session</p>
+              <p className="text-sm text-white font-medium truncate">{lastRoomName || "Last Room"}</p>
+            </div>
+          </Link>
+        )}
+
+        <div className="mt-6 pt-6 border-t border-border/50 space-y-3">
           <div className="flex items-center gap-3 px-2">
-            <img src={user?.avatar || `${import.meta.env.BASE_URL}images/avatar-placeholder.png`} alt="Avatar" className="w-10 h-10 rounded-full bg-secondary object-cover" />
+            <span className="text-2xl">{user?.avatar || "🧑‍💻"}</span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">{user?.username}</p>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                🔥 {user?.currentStreak} day streak
+                🔥 {user?.currentStreak || 0} day streak
               </p>
             </div>
+            <button
+              onClick={() => setColorTheme(colorTheme === "dark" ? "light" : "dark")}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary/60 text-muted-foreground transition-colors shrink-0"
+              title="Toggle theme"
+            >
+              {colorTheme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
           </div>
           <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={logout}>
             <LogOut size={18} className="mr-2" />
@@ -90,7 +125,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
               className="max-w-6xl mx-auto h-full"
             >
               {children}

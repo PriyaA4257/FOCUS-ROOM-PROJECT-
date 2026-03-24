@@ -108,6 +108,25 @@ export function initSocket(server: HttpServer): SocketIOServer {
       io?.to(`room:${data.roomId}`).emit("message", msg);
     });
 
+    socket.on("send-reaction", (data: { roomId: string; emoji: string }) => {
+      const reaction = {
+        id: Date.now().toString(),
+        userId: user.userId,
+        username: user.username,
+        emoji: data.emoji,
+        timestamp: new Date().toISOString(),
+      };
+      io?.to(`room:${data.roomId}`).emit("reaction", reaction);
+    });
+
+    socket.on("ambient-theme", (data: { roomId: string; theme: string }) => {
+      io?.to(`room:${data.roomId}`).emit("ambient-theme-changed", {
+        userId: user.userId,
+        username: user.username,
+        theme: data.theme,
+      });
+    });
+
     socket.on("timer-action", async (data: { roomId: string; action: string }) => {
       try {
         const [room] = await db

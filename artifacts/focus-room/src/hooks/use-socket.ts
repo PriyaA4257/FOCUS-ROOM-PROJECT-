@@ -11,6 +11,14 @@ interface ChatMessage {
   timestamp: string;
 }
 
+export interface EmojiReaction {
+  id: string;
+  userId: string;
+  username: string;
+  emoji: string;
+  timestamp: string;
+}
+
 export function useRoomSocket(roomId: string) {
   const token = useAuthStore((s) => s.token);
   const socketRef = useRef<Socket | null>(null);
@@ -18,11 +26,11 @@ export function useRoomSocket(roomId: string) {
   const [roomState, setRoomState] = useState<RoomDetail | null>(null);
   const [timerState, setTimerState] = useState<TimerState | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [reactions, setReactions] = useState<EmojiReaction[]>([]);
 
   useEffect(() => {
     if (!token || !roomId) return;
 
-    // Connect to the root namespace via /api/socket.io path
     const socket = io("/", {
       path: "/api/socket.io",
       auth: { token },
@@ -53,6 +61,16 @@ export function useRoomSocket(roomId: string) {
       setMessages((prev) => [...prev, msg]);
     });
 
+    socket.on("reaction", (reaction: EmojiReaction) => {
+      setReactions((prev) => {
+        const next = [...prev, reaction];
+        setTimeout(() => {
+          setReactions((r) => r.filter((x) => x.id !== reaction.id));
+        }, 4000);
+        return next;
+      });
+    });
+
     return () => {
       socket.emit("leave-room", roomId);
       socket.disconnect();
@@ -65,11 +83,19 @@ export function useRoomSocket(roomId: string) {
     }
   };
 
+  const sendReaction = (emoji: string) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit("send-reaction", { roomId, emoji });
+    }
+  };
+
   return {
     isConnected,
     roomState,
     timerState,
     messages,
+    reactions,
     sendMessage,
+    sendReaction,
   };
 }
