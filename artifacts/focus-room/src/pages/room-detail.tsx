@@ -30,11 +30,16 @@ export default function RoomDetail() {
   const [showEndConfirm,   setShowEndConfirm]    = useState(false);
   const [editingMeetLink,  setEditingMeetLink]   = useState(false);
   const [meetLinkInput,    setMeetLinkInput]     = useState("");
-  // Local meet-link state: undefined = not yet loaded, null = none, string = has link
   const [localMeetLink,    setLocalMeetLink]     = useState<string | null | undefined>(undefined);
 
-  const prevPhaseRef     = useRef<string | null>(null);
-  const autoStartedRef   = useRef(false);
+  // ── Session tracking refs ─────────────────────────────────
+  const sessionIdRef       = useRef<string | null>(null);
+  const sessionCreatedRef  = useRef(false);
+  const localPomodorosRef  = useRef(0);        // focus rounds completed this session
+  const autoSkipFiredRef   = useRef(false);    // prevent double-fire when timer hits 0
+  const prevPhaseRef       = useRef<string | null>(null);
+  const autoStartedRef     = useRef(false);
+
   const { ambientTheme, setAmbientTheme } = useThemeStore();
 
   // ── Fetch room ────────────────────────────────────────────
@@ -44,7 +49,7 @@ export default function RoomDetail() {
     retry: false,
   });
 
-  // Seed local meet link from initial fetch (runs once)
+  // ── Seed meet link once ───────────────────────────────────
   useEffect(() => {
     if (initialRoom && localMeetLink === undefined) {
       const ml = (initialRoom as any).meetLink ?? null;
@@ -53,10 +58,38 @@ export default function RoomDetail() {
     }
   }, [initialRoom]);
 
-  // ── Join room ─────────────────────────────────────────────
+  // ── Join room + create study session ─────────────────────
   const joinMutation = useMutation({
     mutationFn: () => joinRoom(roomId, {}, { headers: authHeaders }),
   });
+
+  const createSession = useCallback(async () => {
+    if (sessionCreatedRef.current || !roomId) return;
+    sessionCreatedRef.current = true;
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/sessions`, {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sessionIdRef.current = data.id;
+      }
+    } catch {/* silently ignore */}
+  }, [roomId, authHeaders]);
+
+  const completeSession = useCallback(async () => {
+    if (!sessionIdRef.current) return;
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/sessions/${sessionIdRef.current}/complete`, {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ pomodorosCompleted: localPomodorosRef.current }),
+      });
+      sessionIdRef.current = null;
+    } catch {/* silently ignore */}
+  }, [authHeaders]);
 
   useEffect(() => {
     if (initialRoom) {
@@ -64,12 +97,14 @@ export default function RoomDetail() {
       localStorage.setItem("focus_last_room_name",  initialRoom.name);
       const alreadyIn = initialRoom.participants?.find((p: any) => p.userId === user?.id);
       if (!alreadyIn) joinMutation.mutate();
+      createSession();
     }
   }, [initialRoom?.id]);
 
-  // ── Leave / end room ──────────────────────────────────────
+  // ── Leave room mutations ──────────────────────────────────
   const leaveMutation = useMutation({
     mutationFn: async () => {
+      await completeSession();
       const res = await fetch(`${import.meta.env.BASE_URL}api/rooms/${roomId}/leave`, {
         method: "POST", headers: authHeaders,
       });
@@ -84,6 +119,7 @@ export default function RoomDetail() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      await completeSession();
       const res = await fetch(`${import.meta.env.BASE_URL}api/rooms/${roomId}`, {
         method: "DELETE", headers: authHeaders,
       });
@@ -118,7 +154,6 @@ export default function RoomDetail() {
   // ── Socket ────────────────────────────────────────────────
   const { isConnected, roomState, timerState, reactions, meetLink: socketMeetLink, sendReaction } = useRoomSocket(roomId);
 
-  // Sync meet link from socket events
   useEffect(() => {
     if (socketMeetLink !== null) setLocalMeetLink(socketMeetLink);
   }, [socketMeetLink]);
@@ -128,11 +163,14 @@ export default function RoomDetail() {
   const isHost      = activeRoom?.hostId === user?.id;
   const activeMeetLink = localMeetLink !== undefined ? localMeetLink : null;
 
-  // ── Local timer countdown ─────────────────────────────────
+  // ── Local countdown ───────────────────────────────────────
   const [localTime, setLocalTime] = useState(activeTimer?.timeRemaining ?? 0);
 
   useEffect(() => {
-    if (activeTimer) setLocalTime(activeTimer.timeRemaining);
+    if (activeTimer) {
+      setLocalTime(activeTimer.timeRemaining);
+      autoSkipFiredRef.current = false; // reset when phase/time changes from server
+    }
   }, [activeTimer?.timeRemaining, activeTimer?.phase]);
 
   useEffect(() => {
@@ -141,12 +179,33 @@ export default function RoomDetail() {
     return () => clearInterval(iv);
   }, [activeTimer?.isRunning]);
 
-  // ── Auto-start timer for host (once, on idle) ─────────────
+  // ── AUTO-ADVANCE: when timer hits 0, host skips to next phase ──
   const timerActionMutation = useMutation({
     mutationFn: (action: TimerUpdateRequestAction) =>
       updateTimer(roomId, { action }, { headers: authHeaders }),
   });
 
+  useEffect(() => {
+    if (
+      localTime === 0 &&
+      activeTimer?.isRunning &&
+      isHost &&
+      !autoSkipFiredRef.current
+    ) {
+      autoSkipFiredRef.current = true;
+      // Count completed focus round
+      if (activeTimer.phase === "focus") {
+        localPomodorosRef.current += 1;
+      }
+      // Small delay so the UI shows 0:00 briefly
+      const t = setTimeout(() => {
+        timerActionMutation.mutate(TimerUpdateRequestAction.skip);
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [localTime, activeTimer?.isRunning, activeTimer?.phase, isHost]);
+
+  // ── AUTO-START for host on idle ───────────────────────────
   useEffect(() => {
     if (
       isHost &&
@@ -161,7 +220,7 @@ export default function RoomDetail() {
     }
   }, [isHost, activeTimer?.phase, activeTimer?.isRunning, activeRoom?.id]);
 
-  // ── Notifications on phase change ────────────────────────
+  // ── Phase change notifications ────────────────────────────
   useEffect(() => {
     if (!activeTimer) return;
     requestNotificationPermission();
@@ -171,13 +230,20 @@ export default function RoomDetail() {
     prevPhaseRef.current = activeTimer.phase;
   }, [activeTimer?.phase]);
 
-  // ── Focus mode (dim sidebars while timer runs) ────────────
+  // ── Focus mode (dims UI when timer running) ───────────────
   useEffect(() => {
     const active = activeTimer?.phase === "focus" && activeTimer.isRunning;
     document.body.classList.toggle("focus-mode-active", active);
     setIsFocusMode(active);
     return () => document.body.classList.remove("focus-mode-active");
   }, [activeTimer?.phase, activeTimer?.isRunning]);
+
+  // ── Complete session on browser close ─────────────────────
+  useEffect(() => {
+    const handler = () => { completeSession(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [completeSession]);
 
   // ── Fullscreen ────────────────────────────────────────────
   const toggleFullscreen = async () => {
@@ -193,7 +259,7 @@ export default function RoomDetail() {
     return () => document.removeEventListener("fullscreenchange", h);
   }, []);
 
-  // ── Render guards ─────────────────────────────────────────
+  // ── Loading / error guards ────────────────────────────────
   if (isLoading) return (
     <div className="flex h-full items-center justify-center">
       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
@@ -207,17 +273,18 @@ export default function RoomDetail() {
     </div>
   );
 
-  const totalDuration  = activeTimer ? (activeTimer.phase === "focus" ? activeRoom.focusDuration : activeRoom.breakDuration) * 60 : 1;
-  const progress       = activeTimer ? 1 - (localTime / totalDuration) : 0;
-  const isBreak        = activeTimer?.phase === "break";
-  const circumference  = 2 * Math.PI * 120;
+  const totalDuration = activeTimer
+    ? (activeTimer.phase === "focus" ? activeRoom.focusDuration : activeRoom.breakDuration) * 60
+    : 1;
+  const progress      = activeTimer ? 1 - (localTime / totalDuration) : 0;
+  const isBreak       = activeTimer?.phase === "break";
+  const circumference = 2 * Math.PI * 120;
 
   return (
     <div className="h-full flex flex-col gap-3">
 
       {/* ── Top Bar ─────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-2 dim-in-focus">
-        {/* Back button */}
         <button onClick={() => setLocation("/rooms")}
           className="flex items-center gap-2 text-muted-foreground hover:text-white transition-colors text-sm font-medium group">
           <ArrowLeft size={15} className="group-hover:-translate-x-1 transition-transform" />
@@ -225,7 +292,6 @@ export default function RoomDetail() {
         </button>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Google Meet join button (everyone) */}
           {activeMeetLink && (
             <a href={activeMeetLink} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#34A853]/15 border border-[#34A853]/40 text-[#34A853] text-sm font-semibold hover:bg-[#34A853]/25 transition-colors">
@@ -233,7 +299,6 @@ export default function RoomDetail() {
             </a>
           )}
 
-          {/* Host: add / edit meet link */}
           {isHost && !editingMeetLink && (
             <button onClick={() => setEditingMeetLink(true)}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-[#34A853] transition-colors px-2 py-1.5 rounded-lg border border-dashed border-border hover:border-[#34A853]/50">
@@ -242,7 +307,6 @@ export default function RoomDetail() {
             </button>
           )}
 
-          {/* Leave / End buttons */}
           {isHost ? (
             !showEndConfirm
               ? <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 gap-1.5"
@@ -267,14 +331,13 @@ export default function RoomDetail() {
                 </div>
           )}
 
-          {/* Fullscreen */}
           <Button size="icon" variant="ghost" className="text-muted-foreground w-8 h-8" onClick={toggleFullscreen}>
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
           </Button>
         </div>
       </div>
 
-      {/* ── Meet link editor (host) ──────────────────────── */}
+      {/* ── Meet link editor ─────────────────────────────── */}
       <AnimatePresence>
         {isHost && editingMeetLink && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
@@ -311,7 +374,7 @@ export default function RoomDetail() {
           </div>
         ))}
 
-        {/* ── Left Sidebar: Participants + Ambient ──────── */}
+        {/* ── Left: Participants + Ambient ──────────────── */}
         <Card className="hidden md:flex w-52 flex-col p-4 dim-in-focus overflow-hidden shrink-0">
           <div className="mb-4">
             <h3 className="font-bold text-white text-sm truncate">{activeRoom.name}</h3>
@@ -339,7 +402,6 @@ export default function RoomDetail() {
             ))}
           </div>
 
-          {/* Ambient picker */}
           <div className="border-t border-border/50 pt-3">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-2">Ambient</p>
             <div className="grid grid-cols-3 gap-1.5">
@@ -395,7 +457,9 @@ export default function RoomDetail() {
               <motion.span key={activeTimer?.phase}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                 className={cn("text-xs font-bold tracking-widest uppercase mb-1", isBreak ? "text-warning" : "text-primary")}>
-                {activeTimer?.phase === "idle" ? "STARTING…" : activeTimer?.phase ?? "READY"}
+                {activeTimer?.phase === "idle" ? "STARTING…"
+                  : localTime === 0 && activeTimer?.isRunning ? "SWITCHING…"
+                  : activeTimer?.phase ?? "READY"}
               </motion.span>
               <span className="text-6xl font-display font-bold text-white tracking-tight tabular-nums">
                 {formatTime(localTime)}
@@ -412,7 +476,11 @@ export default function RoomDetail() {
               <>
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.92 }}>
                   <Button size="icon" variant="secondary"
-                    onClick={() => { autoStartedRef.current = false; timerActionMutation.mutate(TimerUpdateRequestAction.reset); }}
+                    onClick={() => {
+                      autoStartedRef.current = false;
+                      autoSkipFiredRef.current = false;
+                      timerActionMutation.mutate(TimerUpdateRequestAction.reset);
+                    }}
                     disabled={timerActionMutation.isPending}>
                     <RotateCcw size={18} />
                   </Button>
@@ -421,14 +489,19 @@ export default function RoomDetail() {
                   <Button size="lg"
                     className={cn("w-[72px] h-[72px] rounded-full shadow-2xl transition-all",
                       isBreak ? "bg-warning hover:bg-warning/90 shadow-warning/30" : "bg-primary shadow-primary/30")}
-                    onClick={() => timerActionMutation.mutate(activeTimer?.isRunning ? TimerUpdateRequestAction.pause : TimerUpdateRequestAction.start)}
+                    onClick={() => timerActionMutation.mutate(
+                      activeTimer?.isRunning ? TimerUpdateRequestAction.pause : TimerUpdateRequestAction.start
+                    )}
                     disabled={timerActionMutation.isPending}>
                     {activeTimer?.isRunning ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.92 }}>
                   <Button size="icon" variant="secondary"
-                    onClick={() => timerActionMutation.mutate(TimerUpdateRequestAction.skip)}
+                    onClick={() => {
+                      if (activeTimer?.phase === "focus") localPomodorosRef.current += 1;
+                      timerActionMutation.mutate(TimerUpdateRequestAction.skip);
+                    }}
                     disabled={timerActionMutation.isPending}>
                     <SkipForward size={18} />
                   </Button>
@@ -454,7 +527,7 @@ export default function RoomDetail() {
           </div>
         </div>
 
-        {/* ── Right Sidebar: Reactions Feed + Ambient ────── */}
+        {/* ── Right: Reactions Feed + Ambient ──────────── */}
         <Card className="hidden lg:flex w-52 flex-col dim-in-focus overflow-hidden shrink-0">
           <div className="p-4 border-b border-border/50">
             <h3 className="font-bold text-white text-sm">Live Reactions</h3>
@@ -483,7 +556,6 @@ export default function RoomDetail() {
             )}
           </div>
 
-          {/* Ambient on this panel */}
           <div className="p-3 border-t border-border/50">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-2">Ambient</p>
             <div className="grid grid-cols-3 gap-1">
