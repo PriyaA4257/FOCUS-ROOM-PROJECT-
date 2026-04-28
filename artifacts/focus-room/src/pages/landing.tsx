@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { BrainCircuit, Clock, Users, BarChart3, ArrowRight } from "lucide-react";
+import { Clock, Users, BarChart3, ArrowRight } from "lucide-react";
+import { FocusRoomIcon } from "@/components/focus-room-icon";
 import { Button } from "@/components/ui";
 
 export default function Landing() {
@@ -20,8 +21,8 @@ export default function Landing() {
       {/* Nav */}
       <nav className="relative z-10 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-lg shadow-primary/20">
-            <BrainCircuit size={24} />
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shadow-lg shadow-primary/20">
+            <FocusRoomIcon color="#8B7CF6" size={26} />
           </div>
           <span className="font-display font-bold text-2xl text-white tracking-tight">FocusRoom</span>
         </div>

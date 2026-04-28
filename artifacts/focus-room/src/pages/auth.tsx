@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { BrainCircuit, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { FocusRoomIcon } from "@/components/focus-room-icon";
 import { Button, Input, Label, Card } from "@/components/ui";
 import { useAuthApi } from "@/hooks/use-auth-api";
 import { useToast } from "@/hooks/use-toast";
@@ -47,8 +48,8 @@ export default function Auth({ mode = "login" }: { mode?: "login" | "register" }
       >
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-xl shadow-primary/20">
-              <BrainCircuit size={28} />
+            <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center shadow-xl shadow-primary/30">
+              <FocusRoomIcon color="#8B7CF6" size={30} />
             </div>
           </Link>
           <h1 className="text-3xl font-display font-bold text-white mb-2">

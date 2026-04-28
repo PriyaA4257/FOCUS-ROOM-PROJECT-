@@ -4,41 +4,29 @@
 @theme inline {
   --font-sans: 'Inter', sans-serif;
   --font-display: 'Outfit', sans-serif;
-
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
-  
   --color-popover: hsl(var(--popover));
   --color-popover-foreground: hsl(var(--popover-foreground));
-  
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-  
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-  
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-  
   --color-success: hsl(var(--success));
   --color-success-foreground: hsl(var(--success-foreground));
-  
   --color-warning: hsl(var(--warning));
   --color-warning-foreground: hsl(var(--warning-foreground));
-  
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -46,9 +34,7 @@
   --radius-2xl: 1.5rem;
 }
 
-/* ============================
-   DARK MODE (default)
-   ============================ */
+/* ============================  DEFAULT DARK  ============================ */
 :root {
   --background: 226 47% 7%;
   --foreground: 210 40% 98%;
@@ -76,9 +62,7 @@
   --radius: 0.75rem;
 }
 
-/* ============================
-   LIGHT MODE
-   ============================ */
+/* ============================  LIGHT MODE  ============================ */
 :root.light {
   --background: 220 30% 96%;
   --foreground: 222 47% 11%;
@@ -104,125 +88,196 @@
   --input: 220 20% 85%;
   --ring: 250 70% 60%;
 }
+:root.light h1,:root.light h2,:root.light h3,:root.light h4,:root.light h5,:root.light h6 { color: hsl(222 47% 11%); }
+:root.light .text-white { color: hsl(222 47% 11%) !important; }
 
-:root.light h1,
-:root.light h2,
-:root.light h3,
-:root.light h4,
-:root.light h5,
-:root.light h6 {
-  color: hsl(222 47% 11%);
+/* ============================
+   📚 LIBRARY THEME
+   Warm candlelit bookshelves
+   ============================ */
+[data-ambient="library"] {
+  --background: 24 32% 7%;
+  --card: 24 28% 11%;
+  --border: 24 22% 19%;
+  --secondary: 24 20% 19%;
+  --muted: 24 22% 14%;
+  --primary: 38 90% 60%;
+  --ring: 38 90% 60%;
 }
-
-:root.light .text-white {
-  color: hsl(222 47% 11%) !important;
+[data-ambient="library"] body {
+  background-color: hsl(24, 32%, 7%) !important;
+  background-image:
+    /* Candlelight glow top-left */
+    radial-gradient(ellipse 50% 55% at 18% 38%, rgba(220, 140, 40, 0.18) 0%, transparent 55%),
+    /* Warm reading lamp right */
+    radial-gradient(ellipse 35% 45% at 82% 30%, rgba(200, 120, 30, 0.12) 0%, transparent 50%),
+    /* Bookshelf horizontal lines */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 88px,
+      rgba(120, 70, 20, 0.09) 88px, rgba(120, 70, 20, 0.09) 91px
+    ),
+    /* Book spines vertical dividers */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 28px,
+      rgba(100, 55, 15, 0.05) 28px, rgba(100, 55, 15, 0.05) 30px
+    ),
+    /* Warm floor glow bottom */
+    radial-gradient(ellipse 90% 20% at 50% 100%, rgba(160, 90, 20, 0.1) 0%, transparent 70%) !important;
+  background-attachment: fixed !important;
 }
 
 /* ============================
-   AMBIENT THEMES (overlay bg)
+   🌧️ RAIN THEME
+   Stormy window with raindrops
    ============================ */
-
-/* Library */
-[data-ambient="library"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse at 20% 80%, rgba(180, 120, 60, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(140, 90, 40, 0.08) 0%, transparent 40%);
+[data-ambient="rain"] {
+  --background: 210 45% 6%;
+  --card: 210 38% 10%;
+  --border: 210 28% 17%;
+  --secondary: 210 28% 17%;
+  --muted: 210 35% 12%;
+  --primary: 200 85% 62%;
+  --ring: 200 85% 62%;
+}
+[data-ambient="rain"] body {
+  background-color: hsl(210, 45%, 6%) !important;
+  background-image:
+    /* Storm cloud top */
+    radial-gradient(ellipse 80% 30% at 50% -5%, rgba(60, 80, 130, 0.25) 0%, transparent 60%),
+    /* Lightning highlight */
+    radial-gradient(ellipse 20% 60% at 75% 20%, rgba(140, 170, 255, 0.06) 0%, transparent 50%),
+    /* Rain streaks (diagonal) */
+    repeating-linear-gradient(
+      100deg,
+      transparent 0px, transparent 4px,
+      rgba(140, 180, 255, 0.04) 4px, rgba(140, 180, 255, 0.04) 5px,
+      transparent 5px, transparent 20px
+    ),
+    /* Puddle glow at bottom */
+    radial-gradient(ellipse 70% 15% at 50% 100%, rgba(80, 120, 220, 0.1) 0%, transparent 60%) !important;
+  background-attachment: fixed !important;
+  animation: rain-drift 3s linear infinite !important;
+}
+@keyframes rain-drift {
+  0%   { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
+  100% { background-position: 0 0, 0 0, 30px 80px, 0 0, 0 0; }
 }
 
-[data-ambient="library"] :root {
-  --background: 25 30% 8%;
-  --card: 25 25% 12%;
-  --border: 25 20% 20%;
-  --secondary: 25 20% 20%;
-  --muted: 25 20% 15%;
+/* ============================
+   🌙 NIGHT DESK THEME
+   Late-night lamp & starfield
+   ============================ */
+[data-ambient="night"] {
+  --background: 240 40% 5%;
+  --card: 240 32% 8%;
+  --border: 240 22% 15%;
+  --secondary: 240 22% 15%;
+  --muted: 240 30% 10%;
+  --primary: 45 95% 65%;
+  --ring: 45 95% 65%;
+}
+[data-ambient="night"] body {
+  background-color: hsl(240, 40%, 5%) !important;
+  background-image:
+    /* Desk lamp warm cone of light */
+    radial-gradient(ellipse 45% 70% at 72% 55%, rgba(255, 195, 60, 0.14) 0%, rgba(255, 160, 30, 0.06) 40%, transparent 65%),
+    /* Moonlight through window top-left */
+    radial-gradient(ellipse 30% 40% at 8% 12%, rgba(180, 210, 255, 0.08) 0%, transparent 55%),
+    /* Stars (small dots) */
+    radial-gradient(1.5px 1.5px at 12% 8%,  rgba(255,255,255,0.7) 0%, transparent 100%),
+    radial-gradient(1px 1px   at 35% 5%,  rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 65% 3%,  rgba(255,255,255,0.6) 0%, transparent 100%),
+    radial-gradient(1px 1px   at 85% 10%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 22% 18%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px   at 90% 22%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    /* Desk surface warm glow */
+    radial-gradient(ellipse 80% 10% at 50% 100%, rgba(200, 140, 30, 0.08) 0%, transparent 70%) !important;
+  background-attachment: fixed !important;
 }
 
-/* Rain */
-[data-ambient="rain"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(80, 140, 220, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse at 30% 100%, rgba(60, 110, 200, 0.08) 0%, transparent 40%);
-  animation: rain-pulse 6s ease-in-out infinite alternate;
+/* ============================
+   ☕ COFFEE SHOP THEME
+   Warm café with wood grain
+   ============================ */
+[data-ambient="coffee"] {
+  --background: 28 38% 7%;
+  --card: 28 30% 11%;
+  --border: 28 22% 19%;
+  --secondary: 28 22% 19%;
+  --muted: 28 28% 13%;
+  --primary: 32 95% 60%;
+  --ring: 32 95% 60%;
+}
+[data-ambient="coffee"] body {
+  background-color: hsl(28, 38%, 7%) !important;
+  background-image:
+    /* Warm cafe window light */
+    radial-gradient(ellipse 55% 45% at 25% 25%, rgba(210, 140, 40, 0.15) 0%, transparent 55%),
+    /* Espresso machine warm glow right */
+    radial-gradient(ellipse 30% 50% at 88% 40%, rgba(180, 100, 20, 0.1) 0%, transparent 50%),
+    /* Wood grain diagonal lines */
+    repeating-linear-gradient(
+      12deg,
+      transparent 0px, transparent 18px,
+      rgba(130, 70, 15, 0.05) 18px, rgba(130, 70, 15, 0.05) 19px
+    ),
+    /* Coffee ring circles */
+    radial-gradient(ellipse 8% 5% at 30% 60%, rgba(160, 90, 20, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 6% 4% at 70% 40%, rgba(140, 80, 15, 0.05) 0%, transparent 100%),
+    /* Warm floor */
+    radial-gradient(ellipse 90% 20% at 50% 100%, rgba(150, 80, 20, 0.1) 0%, transparent 70%) !important;
+  background-attachment: fixed !important;
 }
 
-@keyframes rain-pulse {
-  from { opacity: 0.7; }
-  to { opacity: 1; }
+/* ============================
+   🏠 HOME THEME
+   Cozy home study room
+   ============================ */
+[data-ambient="home"] {
+  --background: 120 18% 7%;
+  --card: 120 14% 11%;
+  --border: 120 12% 18%;
+  --secondary: 120 12% 18%;
+  --muted: 120 14% 13%;
+  --primary: 142 70% 50%;
+  --ring: 142 70% 50%;
+}
+[data-ambient="home"] body {
+  background-color: hsl(120, 18%, 7%) !important;
+  background-image:
+    /* Sunlight through curtains top-right */
+    radial-gradient(ellipse 50% 50% at 85% 0%, rgba(255, 230, 120, 0.12) 0%, transparent 55%),
+    /* Soft lamp glow centre-left */
+    radial-gradient(ellipse 40% 50% at 20% 50%, rgba(120, 180, 100, 0.1) 0%, transparent 55%),
+    /* Rug / warm floor */
+    radial-gradient(ellipse 80% 20% at 50% 100%, rgba(100, 150, 80, 0.1) 0%, transparent 70%),
+    /* Gentle curtain folds (vertical) */
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 60px,
+      rgba(100, 160, 80, 0.03) 60px, rgba(100, 160, 80, 0.03) 62px
+    ),
+    /* Bookcase subtle horizontal */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 100px,
+      rgba(80, 120, 60, 0.05) 100px, rgba(80, 120, 60, 0.05) 102px
+    ) !important;
+  background-attachment: fixed !important;
 }
 
-[data-ambient="rain"] :root {
-  --background: 210 40% 7%;
-  --card: 210 35% 11%;
-  --border: 210 25% 18%;
-  --secondary: 210 25% 18%;
-  --muted: 210 30% 13%;
-  --primary: 200 80% 65%;
-}
-
-/* Night Desk */
-[data-ambient="night"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse at 70% 60%, rgba(255, 180, 50, 0.08) 0%, transparent 40%),
-    radial-gradient(ellipse at 30% 40%, rgba(100, 60, 180, 0.08) 0%, transparent 30%);
-}
-
-[data-ambient="night"] :root {
-  --background: 240 35% 5%;
-  --card: 240 30% 9%;
-  --border: 240 20% 16%;
-  --secondary: 240 20% 16%;
-  --muted: 240 25% 11%;
-}
-
-/* Coffee Shop */
-[data-ambient="coffee"] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse at 40% 70%, rgba(160, 100, 50, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(200, 140, 60, 0.07) 0%, transparent 35%);
-}
-
-[data-ambient="coffee"] :root {
-  --background: 30 35% 7%;
-  --card: 30 28% 11%;
-  --border: 30 20% 18%;
-  --secondary: 30 20% 18%;
-  --muted: 30 25% 13%;
-  --primary: 35 90% 65%;
-  --ring: 35 90% 65%;
-}
-
+/* ============================
+   BASE STYLES
+   ============================ */
 @layer base {
-  * {
-    @apply border-border;
-  }
-  
+  * { @apply border-border; }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased min-h-screen selection:bg-primary/30 selection:text-primary-foreground;
-    background-image: 
-      radial-gradient(circle at 15% 50%, rgba(120, 119, 198, 0.05), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(55, 178, 166, 0.05), transparent 25%);
+    @apply bg-background text-foreground font-sans antialiased min-h-screen selection:bg-primary/30;
     background-attachment: fixed;
-    transition: background-color 0.4s ease, color 0.4s ease;
+    transition: background-color 0.5s ease, color 0.3s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -231,30 +286,25 @@
 }
 
 /* Focus Mode */
-.focus-mode-active {
-  transition: all 1s ease-in-out;
-}
-
 .focus-mode-active .dim-in-focus {
-  opacity: 0.1;
+  opacity: 0.08;
   pointer-events: none;
   filter: blur(2px);
   transition: all 1s ease-in-out;
 }
-
 .focus-mode-active .dim-in-focus:hover {
   opacity: 1;
-  filter: blur(0px);
+  filter: blur(0);
   pointer-events: auto;
 }
 
 /* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { @apply bg-muted-foreground/30 rounded-full; }
 ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/50; }
 
-/* Animated Gradient Text */
+/* Gradient Text */
 .text-gradient {
   background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   -webkit-background-clip: text;
@@ -262,15 +312,14 @@
   background-clip: text;
 }
 
-/* Floating Reaction Animation */
+/* Floating Reaction */
 @keyframes float-up {
-  0%   { transform: translateY(0) scale(1); opacity: 1; }
-  80%  { transform: translateY(-120px) scale(1.3); opacity: 0.8; }
-  100% { transform: translateY(-160px) scale(0.8); opacity: 0; }
+  0%   { transform: translateY(0) scale(1);   opacity: 1; }
+  80%  { transform: translateY(-110px) scale(1.3); opacity: 0.8; }
+  100% { transform: translateY(-150px) scale(0.8); opacity: 0; }
 }
-
 .reaction-float {
-  animation: float-up 4s ease-out forwards;
+  animation: float-up 3.5s ease-out forwards;
   pointer-events: none;
   position: fixed;
   z-index: 9999;
@@ -278,38 +327,24 @@
   user-select: none;
 }
 
-/* Badge Shimmer */
+/* Badge shimmer */
 @keyframes badge-shimmer {
   0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  100% { background-position:  200% 0; }
 }
-
 .badge-earned {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: badge-shimmer 3s ease infinite;
 }
 
-/* Button hover glow */
-.btn-glow:hover {
-  box-shadow: 0 0 20px rgba(var(--primary), 0.4);
-}
-
-/* Timer pulse */
+/* Timer pulse while running */
 @keyframes timer-pulse {
-  0%, 100% { filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.4)); }
+  0%, 100% { filter: drop-shadow(0 0 8px  hsl(var(--primary) / 0.4)); }
   50%       { filter: drop-shadow(0 0 20px hsl(var(--primary) / 0.8)); }
 }
+.timer-running svg { animation: timer-pulse 2s ease-in-out infinite; }
 
-.timer-running circle.stroke-primary {
-  animation: timer-pulse 2s ease-in-out infinite;
-}
-
-/* Smooth card transitions */
-.card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-}
+/* Card hover */
+.card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
