@@ -11,72 +11,161 @@ import {
   Users, Play, Pause, RotateCcw, SkipForward,
   Maximize2, Minimize2, ArrowLeft, LogOut, Trash2,
   Video, ExternalLink, Check, X, PlusCircle,
-  Camera, CameraOff, Send, MessageSquare
+  Camera, CameraOff, Send, MessageSquare, Mic, MicOff
 } from "lucide-react";
 import { formatTime, cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const REACTIONS = ["👍", "👏", "🔥", "❤️", "😄", "🎉", "💪", "🤯"];
 
-// ── Webcam Component ─────────────────────────────────────────────────
-function WebcamPanel() {
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const [cameraOn, setCameraOn] = useState(false);
-  const [camError, setCamError] = useState<string | null>(null);
+// ── Webcam + Mic Panel ───────────────────────────────────────────────
+function MediaPanel() {
+  const videoRef     = useRef<HTMLVideoElement>(null);
+  const camStreamRef = useRef<MediaStream | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef  = useRef<AudioContext | null>(null);
+  const animFrameRef = useRef<number>(0);
+
+  const [camOn,     setCamOn]     = useState(false);
+  const [micOn,     setMicOn]     = useState(false);
+  const [micLevel,  setMicLevel]  = useState(0);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // KEY FIX: assign srcObject AFTER the <video> element mounts/updates
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = camStreamRef.current;
+    }
+  }, [camOn]);
+
+  // Cleanup on unmount
+  useEffect(() => () => {
+    camStreamRef.current?.getTracks().forEach(t => t.stop());
+    micStreamRef.current?.getTracks().forEach(t => t.stop());
+    cancelAnimationFrame(animFrameRef.current);
+    audioCtxRef.current?.close();
+  }, []);
 
   const toggleCamera = async () => {
-    if (cameraOn) {
-      streamRef.current?.getTracks().forEach(t => t.stop());
-      if (videoRef.current) videoRef.current.srcObject = null;
-      streamRef.current = null;
-      setCameraOn(false);
+    if (camOn) {
+      camStreamRef.current?.getTracks().forEach(t => t.stop());
+      camStreamRef.current = null;
+      setCamOn(false);
     } else {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        setCameraOn(true);
-        setCamError(null);
+        const s = await navigator.mediaDevices.getUserMedia({ video: true });
+        camStreamRef.current = s;
+        setCamOn(true);   // video element mounts → useEffect assigns srcObject
+        setMediaError(null);
       } catch {
-        setCamError("Camera access denied");
+        setMediaError("Camera access denied — check browser permissions.");
       }
     }
   };
 
-  useEffect(() => () => { streamRef.current?.getTracks().forEach(t => t.stop()); }, []);
+  const toggleMic = async () => {
+    if (micOn) {
+      micStreamRef.current?.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
+      cancelAnimationFrame(animFrameRef.current);
+      audioCtxRef.current?.close();
+      audioCtxRef.current = null;
+      setMicLevel(0);
+      setMicOn(false);
+    } else {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        micStreamRef.current = s;
+
+        // Live mic level via Web Audio API
+        const ctx = new AudioContext();
+        audioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        ctx.createMediaStreamSource(s).connect(analyser);
+
+        const tick = () => {
+          const buf = new Uint8Array(analyser.frequencyBinCount);
+          analyser.getByteFrequencyData(buf);
+          const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+          setMicLevel(Math.min(100, avg * 2.5));
+          animFrameRef.current = requestAnimationFrame(tick);
+        };
+        tick();
+
+        setMicOn(true);
+        setMediaError(null);
+      } catch {
+        setMediaError("Mic access denied — check browser permissions.");
+      }
+    }
+  };
 
   return (
-    <div className="mt-3">
+    <div className="mt-3 space-y-2">
+      {/* Camera preview */}
       <div className={cn(
-        "relative w-full rounded-xl overflow-hidden bg-black/40 border border-border/40",
-        cameraOn ? "aspect-video" : "py-4 flex items-center justify-center"
+        "relative w-full rounded-xl overflow-hidden bg-black/50 border border-border/40 transition-all",
+        camOn ? "aspect-video" : "h-16 flex items-center justify-center"
       )}>
-        {cameraOn
-          ? <video ref={videoRef} autoPlay muted className="w-full h-full object-cover scale-x-[-1]" />
-          : <div className="flex flex-col items-center gap-1 text-muted-foreground">
-              <Camera size={20} />
-              <p className="text-[10px]">Camera off</p>
-            </div>
-        }
-        {cameraOn && (
-          <div className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded-full">
-            You
+        {camOn ? (
+          <video ref={videoRef} autoPlay muted playsInline
+            className="w-full h-full object-cover scale-x-[-1]" />
+        ) : (
+          <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
+            <Camera size={18} />
+            <p className="text-[9px]">Camera off</p>
           </div>
         )}
+        {camOn && (
+          <span className="absolute bottom-1 left-1 text-[8px] bg-black/70 text-white px-1.5 py-0.5 rounded-full">
+            You (muted)
+          </span>
+        )}
+        {/* Mic speaking ring on camera */}
+        {camOn && micOn && micLevel > 15 && (
+          <div className="absolute inset-0 rounded-xl border-2 border-primary/70 pointer-events-none animate-pulse" />
+        )}
       </div>
-      {camError && <p className="text-[10px] text-destructive mt-1">{camError}</p>}
-      <button onClick={toggleCamera}
-        className={cn(
-          "mt-1.5 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors",
-          cameraOn
-            ? "bg-primary/20 text-primary hover:bg-primary/30"
-            : "bg-secondary/60 text-muted-foreground hover:bg-secondary"
-        )}>
-        {cameraOn
-          ? <><CameraOff size={11} /> Turn Off</>
-          : <><Camera size={11} /> Enable Camera</>}
-      </button>
+
+      {/* Mic level bar */}
+      {micOn && (
+        <div className="flex items-center gap-2">
+          <Mic size={10} className="text-primary shrink-0" />
+          <div className="flex-1 h-1.5 bg-secondary/60 rounded-full overflow-hidden">
+            <motion.div className="h-full bg-primary rounded-full"
+              animate={{ width: `${micLevel}%` }}
+              transition={{ duration: 0.08 }} />
+          </div>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <button onClick={toggleCamera}
+          className={cn(
+            "flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
+            camOn
+              ? "bg-primary/20 text-primary border border-primary/40 hover:bg-primary/30"
+              : "bg-secondary/60 text-muted-foreground border border-transparent hover:bg-secondary"
+          )}>
+          {camOn ? <><CameraOff size={11} /> Off</> : <><Camera size={11} /> Camera</>}
+        </button>
+
+        <button onClick={toggleMic}
+          className={cn(
+            "flex items-center justify-center gap-1 py-1.5 rounded-lg text-[10px] font-semibold transition-all",
+            micOn
+              ? "bg-green-500/20 text-green-400 border border-green-500/40 hover:bg-green-500/30"
+              : "bg-secondary/60 text-muted-foreground border border-transparent hover:bg-secondary"
+          )}>
+          {micOn ? <><Mic size={11} /> Mute</> : <><MicOff size={11} /> Mic</>}
+        </button>
+      </div>
+
+      {mediaError && (
+        <p className="text-[9px] text-destructive leading-snug">{mediaError}</p>
+      )}
     </div>
   );
 }
@@ -468,12 +557,12 @@ export default function RoomDetail() {
             ))}
           </div>
 
-          {/* Camera */}
+          {/* Camera + Mic */}
           <div className="border-t border-border/50 pt-3">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mb-1">
-              Your Camera
+              Camera &amp; Mic
             </p>
-            <WebcamPanel />
+            <MediaPanel />
           </div>
 
           {/* Ambient */}
